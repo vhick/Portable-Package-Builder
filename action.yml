@@ -1,0 +1,81 @@
+name: Universal Portable Package Builder
+description: Build a validated portable-app installer from an already assembled PortableApps application folder on Windows.
+inputs:
+  source-dir:
+    description: Absolute or workspace-relative directory of an AppNamePortable folder; appinfo.ini determines identity and version.
+    required: true
+  output-dir:
+    description: Folder for finished installer outputs; do not point it inside source-dir.
+    required: true
+  engine:
+    description: custom-nsis (independent NSIS) or official (authentic official tool; experimental).
+    required: false
+    default: custom-nsis
+  running-exe:
+    description: Optional application binary relative to the portable root, for an exclusive-use check.
+    required: false
+    default: ''
+  timeout-seconds:
+    description: Maximum subprocess duration in seconds.
+    required: false
+    default: '900'
+  package-revision:
+    description: Added to output filename.
+    required: false
+    default: r1
+  official-tool-url:
+    description: Required only for official engine; HTTPS official installer distribution URL.
+    required: false
+    default: ''
+  official-tool-sha256:
+    description: Required only for official engine; vendor-published 64-character checksum.
+    required: false
+    default: ''
+outputs:
+  installer-file:
+    description: Absolute path of the validated installer EXE.
+    value: ${{ steps.build.outputs.installer-file }}
+  installer-sha256:
+    description: SHA256 digest of the installer.
+    value: ${{ steps.build.outputs.installer-sha256 }}
+  app-id:
+    description: AppID extracted from appinfo.ini.
+    value: ${{ steps.build.outputs.app-id }}
+  app-version:
+    description: App PackageVersion extracted from appinfo.ini.
+    value: ${{ steps.build.outputs.app-version }}
+runs:
+  using: composite
+  steps:
+    - name: Ensure Windows runner
+      shell: pwsh
+      run: |
+        if (-not $IsWindows) { throw 'This action requires Windows.' }
+    - name: Install NSIS compiler only if requested and missing
+      if: inputs.engine == 'custom-nsis'
+      shell: pwsh
+      run: |
+        $n = Get-Command makensis.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+        $p = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+        if (-not $n -and -not (Test-Path -LiteralPath $p)) {
+          choco install nsis --yes --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) { throw 'Chocolatey NSIS setup failed' }
+        }
+    - name: Build and verify installer
+      id: build
+      shell: pwsh
+      env:
+        UPB_SOURCE: ${{ inputs.source-dir }}
+        UPB_OUTPUT: ${{ inputs.output-dir }}
+        UPB_ENGINE: ${{ inputs.engine }}
+        UPB_RUNNING: ${{ inputs.running-exe }}
+        UPB_TIMEOUT: ${{ inputs.timeout-seconds }}
+        UPB_REVISION: ${{ inputs.package-revision }}
+        UPB_OFFICIAL_URL: ${{ inputs.official-tool-url }}
+        UPB_OFFICIAL_SHA: ${{ inputs.official-tool-sha256 }}
+      run: |
+        & "$env:GITHUB_ACTION_PATH/scripts/build.ps1" `
+          -SourceDir $env:UPB_SOURCE -OutputDir $env:UPB_OUTPUT -Engine $env:UPB_ENGINE `
+          -RunningExe $env:UPB_RUNNING -TimeoutSeconds ([int]$env:UPB_TIMEOUT) `
+          -PackageRevision $env:UPB_REVISION -OfficialUrl $env:UPB_OFFICIAL_URL `
+          -OfficialSha256 $env:UPB_OFFICIAL_SHA

@@ -1,0 +1,6 @@
+work/
+dist/
+*.paf.exe
+*.zip
+*.log
+.DS_Store

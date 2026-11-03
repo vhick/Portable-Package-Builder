@@ -1,0 +1,34 @@
+# Copy into .github/workflows/build-paf-from-release.yml of an application builder repo.
+name: Package existing ZIP with universal builder
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Existing release tag for already validated portable ZIP
+        required: true
+        default: portable-v1.98.63-brave-r7
+      source_asset:
+        description: Exact ZIP asset name from release
+        required: true
+        default: BravePortable_1.98.63_brave-r7_Win64.zip
+      output_tag:
+        description: NEW release tag for independent NSIS installer
+        required: true
+        default: portable-v1.98.63-brave-universal-nsis-r1
+      publish:
+        type: boolean
+        description: Actually publish when all installer checks pass
+        default: false
+permissions:
+  contents: write
+jobs:
+  paf:
+    uses: vhick/portable-package-builder/.github/workflows/portable-paf-from-release.yml@v1.0.0
+    with:
+      source-tag: ${{ inputs.source_tag }}
+      source-asset: ${{ inputs.source_asset }}
+      output-tag: ${{ inputs.output_tag }}
+      engine: custom-nsis
+      running-exe: 'App\Brave\brave.exe'
+      package-revision: r1
+      publish: ${{ inputs.publish }}

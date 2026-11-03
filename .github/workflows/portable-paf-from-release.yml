@@ -1,0 +1,103 @@
+name: Universal PAF from an existing verified ZIP
+on:
+  workflow_call:
+    inputs:
+      source-tag:
+        required: true
+        type: string
+      source-asset:
+        required: true
+        type: string
+      output-tag:
+        required: true
+        type: string
+      engine:
+        type: string
+        default: custom-nsis
+      running-exe:
+        type: string
+        default: ''
+      publish:
+        type: boolean
+        default: false
+      official-tool-url:
+        type: string
+        default: ''
+      official-tool-sha256:
+        type: string
+        default: ''
+      package-revision:
+        type: string
+        default: r1
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    concurrency:
+      group: upb-${{ github.repository }}-${{ inputs.output-tag }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout calling builder repository
+        uses: actions/checkout@v4
+      - name: Check target release before downloading browser
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_TAG: ${{ inputs.output-tag }}
+        run: |
+          # This script is fetched from the shared repository in the next step;
+          # the early check uses the same HTTP 404 / 200 / other semantics.
+          if ($env:TARGET_TAG -notmatch '^portable-[A-Za-z0-9._+-]+$') { throw 'Unsafe output tag' }
+          $uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/tags/$env:TARGET_TAG"
+          $r=Invoke-WebRequest -Uri $uri -Headers @{Authorization="Bearer $env:GH_TOKEN";Accept='application/vnd.github+json'} -SkipHttpErrorCheck -TimeoutSec 30
+          if ($r.StatusCode -eq 200) { throw "Release $env:TARGET_TAG already exists; refusing overwrite" }
+          if ($r.StatusCode -ne 404) { throw "GitHub release lookup HTTP $($r.StatusCode)" }
+      - name: Checkout universal packaging scripts (separate directory)
+        uses: actions/checkout@v4
+        with:
+          repository: vhick/portable-package-builder
+          ref: v1.0.0
+          path: .upb-tool
+          persist-credentials: false
+      - name: Verify source ZIP and extract once
+        id: download
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ inputs.source-tag }}
+          SOURCE_ASSET: ${{ inputs.source-asset }}
+        run: |
+          & ./.upb-tool/scripts/download-release.ps1 -SourceTag $env:SOURCE_TAG -AssetName $env:SOURCE_ASSET -Destination "$env:RUNNER_TEMP\source-release"
+      - name: Build independent or official installer
+        id: pack
+        uses: vhick/portable-package-builder@v1.0.0
+        with:
+          source-dir: ${{ steps.download.outputs.source-dir }}
+          output-dir: ${{ github.workspace }}/dist
+          engine: ${{ inputs.engine }}
+          running-exe: ${{ inputs.running-exe }}
+          package-revision: ${{ inputs.package-revision }}
+          official-tool-url: ${{ inputs.official-tool-url }}
+          official-tool-sha256: ${{ inputs.official-tool-sha256 }}
+      - name: Publisher dry run (no upload)
+        if: inputs.publish
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: dist/*.paf.exe
+          tag: ${{ inputs.output-tag }}
+          release-title: ${{ inputs.output-tag }}
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'true'
+      - name: Publish validated installer into calling repository
+        if: inputs.publish
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: dist/*.paf.exe
+          tag: ${{ inputs.output-tag }}
+          release-title: ${{ inputs.output-tag }}
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'false'
