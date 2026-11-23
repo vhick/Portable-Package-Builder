@@ -20,12 +20,9 @@ on:
       publish:
         type: boolean
         default: false
-      official-tool-url:
+      official-source-dir:
         type: string
-        default: 'https://sourceforge.net/projects/portableapps/files/PortableApps.com%20Installer/PortableApps.comInstaller_3.9.24.paf.exe/download'
-      official-tool-sha256:
-        type: string
-        default: '7ef6e2758cb578843d767fb5fafdbde8bf872b84f0acd6e64f18afbb05c04f00'
+        default: ''
       package-revision:
         type: string
         default: r1
@@ -58,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: vhick/Portable-Package-Builder
-          ref: v1.1.0
+          ref: main
           path: .upb-tool
           persist-credentials: false
       - name: Verify source ZIP and extract once
@@ -72,15 +69,14 @@ jobs:
           & ./.upb-tool/scripts/download-release.ps1 -SourceTag $env:SOURCE_TAG -AssetName $env:SOURCE_ASSET -Destination "$env:RUNNER_TEMP\source-release"
       - name: Build independent or official installer
         id: pack
-        uses: vhick/Portable-Package-Builder@v1.1.0
+        uses: ./.upb-tool
         with:
           source-dir: ${{ steps.download.outputs.source-dir }}
           output-dir: ${{ github.workspace }}/dist
           engine: ${{ inputs.engine }}
           running-exe: ${{ inputs.running-exe }}
           package-revision: ${{ inputs.package-revision }}
-          official-tool-url: ${{ inputs.official-tool-url }}
-          official-tool-sha256: ${{ inputs.official-tool-sha256 }}
+          official-source-dir: ${{ inputs.official-source-dir }}
       - name: Show two independent engine outputs
         shell: pwsh
         env:

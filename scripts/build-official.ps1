@@ -1,96 +1,98 @@
-# Unmodified PortableApps.com Installer distribution + documented folder-argument
-# automatic mode. This builds a PAF with the genuine vendor tool; it does not
-# compile or patch the attached InstallerWizard.nsi or replace our custom NSIS.
+# Offline official-source compiler: no SourceForge, no .paf.exe tool download,
+# no installer wizard invocation, no GUI. Requires the COMPLETE, GENERATED
+# PortableApps.com Installer NSIS sources for this app (not InstallerWizard.nsi).
 param(
   [Parameter(Mandatory)]$Info,
   [Parameter(Mandatory)][string]$Target,
   [Parameter(Mandatory)][string]$Work,
-  [Parameter(Mandatory)][string]$ToolUrl,
-  [Parameter(Mandatory)][string]$ExpectedSha,
+  [string]$OfficialSourceDir='',
   [int]$TimeoutSeconds=600
 )
+$ErrorActionPreference='Stop'
 . "$PSScriptRoot/common.ps1"
-Require ($ToolUrl -match '^https://(sourceforge\.net|downloads\.sourceforge\.net|[a-z0-9.-]+\.dl\.sourceforge\.net)/') 'Official distribution must use HTTPS on SourceForge (not an unrelated download host).'
-Require ($ExpectedSha -match '^[a-fA-F0-9]{64}$') 'Expected SHA-256 must be 64 hex characters.'
+Require ($IsWindows) 'The official source compiler requires Windows.'
 $workDir=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Work)
-New-Item -ItemType Directory -Path $workDir -Force | Out-Null
-$archive=Join-Path $workDir 'PortableApps.comInstaller-vendor.paf.exe'
-$toolsDir=Join-Path $workDir 'vendor-tool'
 $stageParent=Join-Path $workDir 'isolated-source'
 $stage=Join-Path $stageParent $Info.Folder
-Require (-not (Test-Path -LiteralPath $stageParent)) 'Official stage already exists; refusing stale output or unexpected source reuse.'
-Require (-not (Test-Path -LiteralPath $Target)) 'Refusing overwrite of official output.'
-New-Item -ItemType Directory -Path $toolsDir,$stageParent -Force | Out-Null
-
-# The upstream distribution is deliberately NOT bundled in our repository.
-# Pin BOTH the versioned download URL and SourceForge-published checksum.
-Write-Host "Downloading unmodified PortableApps.com Installer: $ToolUrl"
-Invoke-WebRequest -Uri $ToolUrl -MaximumRedirection 8 -TimeoutSec 240 -OutFile $archive -ErrorAction Stop
-Require ((Get-Item -LiteralPath $archive).Length -gt 1000000) 'Vendor distribution download unexpectedly small (possibly an HTML download page).'
-Require ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ieq $ExpectedSha) 'Official installer distribution checksum mismatch. Update BOTH URL and SHA from official download page.'
-Assert-PE $archive
-Assert-Archive $archive
-$seven=Get-7zip
-& $seven x -y "-o$toolsDir" $archive | Out-Null
-Require ($LASTEXITCODE -eq 0) 'Could not unpack the verified PortableApps.com Installer distribution.'
-$found=@(Get-ChildItem -LiteralPath $toolsDir -Recurse -File -Filter 'PortableApps.comInstaller.exe' -ErrorAction Stop)
-Require ($found.Count -eq 1) "Expected one official packaging wizard executable; found $($found.Count)."
-$tool=$found[0].FullName
-Assert-PE $tool
-# The official .paf.exe is distributed as an NSIS archive. Depending on 7-Zip's
-# extraction layout, source can be nested one directory deeper. The correct
-# application root has both App/nsis and App/installer next to the wizard EXE.
-$toolRoot=Split-Path -Parent $tool
-Require (Test-Path -LiteralPath (Join-Path $toolRoot 'App/nsis/makensis.exe') -PathType Leaf) 'Official packaging wizard is missing its bundled App/nsis/makensis.exe; check extraction layout.'
-Require (Test-Path -LiteralPath (Join-Path $toolRoot 'App/installer/PortableApps.comInstaller.nsi') -PathType Leaf) 'Official packaging wizard is missing App/installer/PortableApps.comInstaller.nsi.'
-
-# The upstream wizard may copy NSIS sources into Other/Source, alter optional
-# sections, remove generated files and write AppInfo. NEVER run it on original
-# application data. Robocopy /E preserves even empty directories, /XJ excludes
-# junctions. Data contains user state and is excluded from distribution.
-Assert-NoReparse $Info.Source
+Require (-not (Test-Path -LiteralPath $workDir)) 'Refusing to reuse existing official build work directory. Choose a clean output directory.'
+Require (-not (Test-Path -LiteralPath $Target)) 'Refusing to overwrite official output.'
+# Identify a generated per-app source tree. The uploaded InstallerWizard.nsi
+# is not a substitute for PortableApps.comInstaller.nsi and its dependencies.
+$sourceDir=if($OfficialSourceDir) { Resolve-Directory $OfficialSourceDir } else { Join-Path $Info.Source 'Other/Source' }
+$entry=Join-Path $sourceDir 'PortableApps.comInstaller.nsi'
+$config=Join-Path $sourceDir 'PortableApps.comInstallerConfig.nsh'
+Require (Test-Path -LiteralPath $entry -PathType Leaf) @"
+OFFICIAL_SOURCE_MISSING: Complete PortableApps.com Installer application template not found:
+  $entry
+Your uploaded PortableApps_Installer_Source.zip contains InstallerWizard.nsi (GUI packaging wizard),
+NOT the installer template and support files it uses. We cannot compile the genuine installer from
+that wizard-only ZIP. Provide a complete generated Other/Source folder or set official-source-dir.
+No external executable will be downloaded, and custom-nsis builds are unaffected.
+"@
+Require (Test-Path -LiteralPath $config -PathType Leaf) "OFFICIAL_SOURCE_MISSING: $config is required for direct headless NSIS compilation."
+Assert-NoReparse $sourceDir
+# If both folders are the same, normal robocopy copies it. If supplied externally,
+# overlay only the vetted source files into the isolated staged application.
+New-Item -ItemType Directory -Path $stageParent -Force | Out-Null
 $rcArgs=@($Info.Source,$stage,'/E','/XJ','/R:1','/W:1','/NP','/NFL','/NDL','/NJH','/NJS','/XD',(Join-Path $Info.Source 'Data'))
 & robocopy.exe @rcArgs | Out-Null
-$rc=$LASTEXITCODE
-Require ($rc -le 7) "Could not copy application to isolated official stage (robocopy exit $rc)."
-Require (Test-Path -LiteralPath (Join-Path $stage 'App/AppInfo/appinfo.ini')) 'Isolated source lost appinfo.ini.'
-Require (-not (Test-Path -LiteralPath (Join-Path $stage 'Data'))) 'Data unexpectedly copied into official distribution staging.'
-
-# Source inspection (provided InstallerWizard.nsi v3.9.24) confirms passing one
-# quoted folder path activates bolAutomaticCompile and skips folder-selection
-# and successful finish pages. DO NOT add /S: that bypasses page callbacks
-# needed to set source INI paths; it is NOT a supported compiler switch.
-# No one is available to click a modal dialog in GitHub Actions: preflight,
-# process timeout, isolated directory and result/log checks are mandatory.
-$expectedSource=Join-Path $stage 'App/AppInfo/appinfo.ini'
-foreach($pair in @(@('Details','Name'),@('Details','AppID'),@('Version','DisplayVersion'),@('Version','PackageVersion'))) {
-  Require (-not [string]::IsNullOrWhiteSpace((Get-IniValue $expectedSource $pair[0] $pair[1]))) "Official wizard requires [$($pair[0])] $($pair[1]) in appinfo.ini; it will not prompt on CI."
+Require ($LASTEXITCODE -le 7) "Unable to stage application (robocopy exit $LASTEXITCODE)."
+Require (-not (Test-Path -LiteralPath (Join-Path $stage 'Data'))) 'User Data was unexpectedly staged!'
+$generatedDir=Join-Path $stage 'Other/Source'
+if ($sourceDir.TrimEnd('\') -ine (Join-Path $Info.Source 'Other/Source').TrimEnd('\')) {
+  New-Item -ItemType Directory -Path $generatedDir -Force | Out-Null
+  & robocopy.exe $sourceDir $generatedDir '/E' '/XJ' '/R:1' '/W:1' '/NP' '/NFL' '/NDL' '/NJH' '/NJS' | Out-Null
+  Require ($LASTEXITCODE -le 7) "Unable to stage official NSIS source (robocopy exit $LASTEXITCODE)."
 }
-foreach($key in @('Shareable','OpenSource','Freeware','CommercialUse')) {
-  $v=Get-IniValue $expectedSource 'License' $key
-  Require ($v -in @('true','false')) "Official builder requires an explicitly truthful [License] $key=true/false. Missing values are not silently invented."
+$stageEntry=Join-Path $generatedDir 'PortableApps.comInstaller.nsi'
+$stageConfig=Join-Path $generatedDir 'PortableApps.comInstallerConfig.nsh'
+Require (Test-Path -LiteralPath $stageEntry -PathType Leaf) 'Staged installer source is missing.'
+Require (Test-Path -LiteralPath $stageConfig -PathType Leaf) 'Staged official config is missing.'
+# The official wizard writes VERSION, DISPLAYVERSION, APPID and PORTABLEAPPNAME.
+# Refresh only these known source macros in the isolated copy, so routine app
+# version upgrades do not require rebuilding the wrapper or changing pinned URLs.
+$values=@{
+  'VERSION'=$Info.Version
+  'DISPLAYVERSION'=$(if($Info.DisplayVersion){$Info.DisplayVersion}else{$Info.Version})
+  'APPID'=$Info.AppID
+  'PORTABLEAPPNAME'=$Info.Name
 }
+$cfg=[IO.File]::ReadAllText($stageConfig)
+foreach($key in @('VERSION','DISPLAYVERSION','APPID','PORTABLEAPPNAME')) {
+  $rx='(?m)^\s*!define\s+'+$key+'\s+"([^"\r\n]*)"[ \t]*$'
+  $m=[regex]::Match($cfg,$rx)
+  Require ($m.Success) "OFFICIAL_SOURCE_INCOMPATIBLE: Missing expected !define $key from generated official config. Do not silently substitute a new format."
+  $wanted=[string]$values[$key]
+  Require ($wanted -notmatch '[`"\r\n]') "Unsafe value in $key"
+  $cfg=$cfg.Substring(0,$m.Index) + ($m.Value.Substring(0,$m.Groups[1].Index-$m.Index)) + $wanted + ($m.Value.Substring($m.Groups[1].Index-$m.Index+$m.Groups[1].Length)) + $cfg.Substring($m.Index+$m.Length)
+}
+# Respect vendor source encoding (typically UTF-16LE with BOM); prevent
+# accidental conversion of Unicode NSIS source into invalid ASCII.
+$raw=[IO.File]::ReadAllBytes($stageConfig)
+if($raw.Length -ge 2 -and $raw[0] -eq 0xff -and $raw[1] -eq 0xfe) {
+  [IO.File]::WriteAllText($stageConfig,$cfg,[Text.UnicodeEncoding]::new($false,$true))
+} elseif($raw.Length -ge 2 -and $raw[0] -eq 0xfe -and $raw[1] -eq 0xff) {
+  [IO.File]::WriteAllText($stageConfig,$cfg,[Text.UnicodeEncoding]::new($true,$true))
+} else {
+  [IO.File]::WriteAllText($stageConfig,$cfg,[Text.UTF8Encoding]::new($false))
+}
+# Never execute InstallerWizard.exe or app's installer; the real executable we
+# run is the ordinary NSIS *compiler*, with full logging and timeout.
+$maker=Get-Makensis
+$log=Join-Path $workDir 'official-makensis.log'
+$existing=@(Get-ChildItem -LiteralPath $stageParent -File -Filter '*.paf.exe')
+Require ($existing.Count -eq 0) 'A .paf.exe already exists in isolated stage; refusing to mix stale outputs.'
+Write-Host "Compiling official PortableApps installer *application source* via makensis.exe (non-interactive)."
+Write-Host "Source root: $generatedDir"
+Invoke-Program $maker @('/V3',$stageEntry) $TimeoutSeconds $generatedDir $log
 $generated=@(Get-ChildItem -LiteralPath $stageParent -File -Filter '*.paf.exe')
-Require ($generated.Count -eq 0) 'An output PAF already exists in isolated staging; refusing overwrite.'
-$log=Join-Path $workDir 'official-compile.log'
-Write-Host 'Running authentic official wizard in automatic (no-click) folder mode on a copy. A progress window may still exist.'
-try {
-  Invoke-Program $tool @($stage) $TimeoutSeconds $workDir $log
-} finally {
-  $vendorLog=Join-Path $toolRoot 'Data/PortableApps.comInstallerLog.txt'
-  if (Test-Path -LiteralPath $vendorLog) {
-    Copy-Item -LiteralPath $vendorLog -Destination (Join-Path $workDir 'vendor-makensis.log') -Force
-    Write-Host 'Vendor NSIS compiler log:'
-    Get-Content -LiteralPath (Join-Path $workDir 'vendor-makensis.log') -Tail 70 -ErrorAction SilentlyContinue | Out-Host
-  }
-}
-$generated=@(Get-ChildItem -LiteralPath $stageParent -File -Filter '*.paf.exe')
-Require ($generated.Count -eq 1) "The official wizard did not produce exactly one installer in isolated stage parent ($($generated.Count) found). Check vendor-makensis.log."
+Require ($generated.Count -eq 1) "Official source did not produce exactly one installer next to portable folder ($($generated.Count) found); see $log."
 Assert-PE $generated[0].FullName
 Assert-Archive $generated[0].FullName
-# Verify the EXE has its own PortableApps payload, not just a valid PE header.
-$listing=@(& $seven l -slt $generated[0].FullName)
-Require ($LASTEXITCODE -eq 0) 'Cannot list generated official installer payload.'
-Require (($listing -join "`n") -match '(?i)App[\\/]AppInfo[\\/]appinfo\.ini') 'Official output is missing App/AppInfo/appinfo.ini in archive listing.'
+$seven=Get-7zip
+$list=@(& $seven l -slt $generated[0].FullName)
+Require ($LASTEXITCODE -eq 0) 'Could not inspect official output archive.'
+Require (($list -join "`n") -match '(?i)App[\\/]AppInfo[\\/]appinfo\.ini') 'Official output is missing appinfo.ini.'
+Require (($list -join "`n") -notmatch '(?im)^Path = (?:[^\\/\r\n]+[\\/])?Data[\\/]') 'Official output unexpectedly contains user Data.'
 Copy-Item -LiteralPath $generated[0].FullName -Destination $Target -ErrorAction Stop
-Write-Host "Official PortableApps.com Installer produced and validated: $Target"
+Write-Host "PASS: compiled official-generated NSIS sources without running a wizard or fetching an installer: $Target"

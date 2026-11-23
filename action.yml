@@ -8,7 +8,7 @@ inputs:
     description: Folder for finished installer outputs; do not point it inside source-dir.
     required: true
   engine:
-    description: custom-nsis (default), official (unmodified vendor packaging tool), or both (two separate installers).
+    description: custom-nsis (default), official (headless compilation of genuine generated NSIS sources), or both (two separate installers).
     required: false
     default: custom-nsis
   running-exe:
@@ -23,14 +23,10 @@ inputs:
     description: Added to output filename.
     required: false
     default: r1
-  official-tool-url:
-    description: Versioned official SourceForge distribution URL; default pinned 3.9.24.
+  official-source-dir:
+    description: Complete generated official PortableApps Other/Source path, containing PortableApps.comInstaller.nsi and Config.nsh. Empty means source-dir/Other/Source.
     required: false
-    default: 'https://sourceforge.net/projects/portableapps/files/PortableApps.com%20Installer/PortableApps.comInstaller_3.9.24.paf.exe/download'
-  official-tool-sha256:
-    description: Vendor SourceForge-displayed SHA256 of the pinned 3.9.24 download; update together with URL.
-    required: false
-    default: '7ef6e2758cb578843d767fb5fafdbde8bf872b84f0acd6e64f18afbb05c04f00'
+    default: ''
 outputs:
   installer-file:
     description: Absolute path of the validated installer EXE.
@@ -45,10 +41,10 @@ outputs:
     description: Independent NSIS installer checksum (empty if not requested).
     value: ${{ steps.build.outputs.custom-installer-sha256 }}
   official-installer-file:
-    description: Vendor-created official PortableApps.com installer path (empty if engine=custom-nsis).
+    description: Official-source-built PortableApps.com installer path (empty if engine=custom-nsis).
     value: ${{ steps.build.outputs.official-installer-file }}
   official-installer-sha256:
-    description: Official vendor-tool installer checksum (empty if not requested).
+    description: Official-source-built installer checksum (empty if not requested).
     value: ${{ steps.build.outputs.official-installer-sha256 }}
   app-id:
     description: AppID extracted from appinfo.ini.
@@ -64,7 +60,7 @@ runs:
       run: |
         if (-not $IsWindows) { throw 'This action requires Windows.' }
     - name: Install NSIS compiler only if requested and missing
-      if: inputs.engine == 'custom-nsis' || inputs.engine == 'both'
+      if: inputs.engine == 'custom-nsis' || inputs.engine == 'official' || inputs.engine == 'both'
       shell: pwsh
       run: |
         $n = Get-Command makensis.exe -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -83,11 +79,9 @@ runs:
         UPB_RUNNING: ${{ inputs.running-exe }}
         UPB_TIMEOUT: ${{ inputs.timeout-seconds }}
         UPB_REVISION: ${{ inputs.package-revision }}
-        UPB_OFFICIAL_URL: ${{ inputs.official-tool-url }}
-        UPB_OFFICIAL_SHA: ${{ inputs.official-tool-sha256 }}
+        UPB_OFFICIAL_SOURCE: ${{ inputs.official-source-dir }}
       run: |
         & "$env:GITHUB_ACTION_PATH/scripts/build.ps1" `
           -SourceDir $env:UPB_SOURCE -OutputDir $env:UPB_OUTPUT -Engine $env:UPB_ENGINE `
           -RunningExe $env:UPB_RUNNING -TimeoutSeconds ([int]$env:UPB_TIMEOUT) `
-          -PackageRevision $env:UPB_REVISION -OfficialUrl $env:UPB_OFFICIAL_URL `
-          -OfficialSha256 $env:UPB_OFFICIAL_SHA
+          -PackageRevision $env:UPB_REVISION -OfficialSourceDir $env:UPB_OFFICIAL_SOURCE

@@ -49,6 +49,7 @@ function Get-PackageInfo([string]$Source) {
   $id=Get-IniValue $ini 'Details' 'AppID'
   $name=Get-IniValue $ini 'Details' 'Name'
   $version=Get-IniValue $ini 'Version' 'PackageVersion'
+  $displayVersion=Get-IniValue $ini 'Version' 'DisplayVersion'
   $format=Get-IniValue $ini 'Format' 'Type'
   $launcher=Get-IniValue $ini 'Control' 'Start'
   Require ($format -eq 'PortableApps.comFormat') 'Incorrect Format.Type (expected PortableApps.comFormat)'
@@ -60,7 +61,7 @@ function Get-PackageInfo([string]$Source) {
   Assert-PE $launcherPath
   Require (Test-Path -LiteralPath (Join-Path $source 'App/AppInfo/appicon.ico') -PathType Leaf) 'Missing appicon.ico'
   Assert-NoReparse $source
-  return [pscustomobject]@{ Source=$source; Folder=$folder; AppID=$id; Name=$name; Version=$version; Launcher=$launcher }
+  return [pscustomobject]@{ Source=$source; Folder=$folder; AppID=$id; Name=$name; Version=$version; DisplayVersion=$displayVersion; Launcher=$launcher }
 }
 function Get-Makensis {
   $found=Get-Command makensis.exe -ErrorAction SilentlyContinue | Select-Object -First 1

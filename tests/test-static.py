@@ -34,13 +34,17 @@ new_test=(root/'tests/test-official.ps1').read_text()
 smoke=(root/'.github/workflows/official-smoke-test.yml').read_text()
 assert 'both' in a and 'official-installer-file' in a and 'custom-installer-file' in a
 assert "default: custom-nsis" in a
-assert '3.9.24' in a and '7ef6e2758cb578843d767fb5fafdbde8bf872b84f0acd6e64f18afbb05c04f00' in a
-assert 'Assert-NoReparse $Info.Source' in official
-assert "'/XD'" in official and "Join-Path $Info.Source 'Data'" in official
-assert 'portableapps.cominstaller.nsi' in official.lower()
-assert 'Invoke-Program $tool @($stage)' in official
-assert "@($stage,'/S')" not in official
+assert 'official-source-dir:' in a
+assert 'official-tool-url:' not in a and 'official-tool-sha256:' not in a
+assert 'OFFICIAL_SOURCE_MISSING' in official
+assert 'PortableApps.comInstaller.nsi' in official
+assert 'PortableApps.comInstallerConfig.nsh' in official
+assert 'Invoke-Program $maker' in official
+assert 'Assert-NoReparse $sourceDir' in official
+assert "Join-Path $Info.Source 'Data'" in official
+assert 'Invoke-WebRequest' not in official
+assert 'InstallerWizard.exe' not in official.replace('Never execute InstallerWizard.exe', '')
 assert 'official' in smoke.lower() and 'test-official.ps1' in smoke
-assert 'Data/profile/private-marker.txt' in new_test
+assert 'Data/private/secret.txt' in new_test
 assert 'official' in src and 'both' in src
-print('PASS: Static structure, Data exclusions, independent+official outputs, checksum pin, vendor isolation, no unsupported wizard /S, publisher and fixture coverage')
+print('PASS: Static structure, Data exclusions, offline official-source guard, custom NSIS preservation, publisher and fixture coverage')

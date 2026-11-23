@@ -3,8 +3,7 @@ param(
   [Parameter(Mandatory)][string]$OutputDir,
   [ValidateSet('custom-nsis','official','both')][string]$Engine='custom-nsis',
   [string]$RunningExe='',
-  [string]$OfficialUrl='',
-  [string]$OfficialSha256='',
+  [string]$OfficialSourceDir='',
   [int]$TimeoutSeconds=900,
   [string]$PackageRevision='r1'
 )
@@ -34,13 +33,13 @@ foreach($chosen in $(if($Engine -eq 'both') { @('custom-nsis','official') } else
   } else {
     # The genuine wizard's automatic compile mode is a separate process with
     # private stage; it never modifies the validated input used by custom NSIS.
-    & "$PSScriptRoot/build-official.ps1" -Info $meta -Target $target -Work (Join-Path $work 'official') -ToolUrl $OfficialUrl -ExpectedSha $OfficialSha256 -TimeoutSeconds $TimeoutSeconds
+    & "$PSScriptRoot/build-official.ps1" -Info $meta -Target $target -Work (Join-Path $work 'official') -OfficialSourceDir $OfficialSourceDir -TimeoutSeconds $TimeoutSeconds
   }
   Assert-PE $target
   Assert-Archive $target
   $hash=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
   "$hash  $basename" | Set-Content -LiteralPath "$target.sha256" -Encoding ascii
-  [pscustomobject]@{ app_id=$meta.AppID;folder=$meta.Folder;version=$meta.Version;engine=$chosen;file=$target;sha256=$hash;provenance=$(if($chosen -eq 'official'){'unmodified-official-tool'}else{'independent-nsis'}) } |
+  [pscustomobject]@{ app_id=$meta.AppID;folder=$meta.Folder;version=$meta.Version;engine=$chosen;file=$target;sha256=$hash;provenance=$(if($chosen -eq 'official'){'official-generated-nsis-source'}else{'independent-nsis'}) } |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$target.json" -Encoding utf8
   $results[$chosen]=[pscustomobject]@{File=$target;Sha=$hash}
   Write-Host "VALIDATED ($chosen) $target  SHA-256 $hash"

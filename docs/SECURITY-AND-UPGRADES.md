@@ -1,31 +1,9 @@
-# Safety and migration design
+# Security and upgrades
 
-## Explicit ownership boundary
+The default custom-nsis packaging behavior is unchanged. All builds reject reparse points and forbid embedding the portable application's Data directory in the packaging stage.
 
-This generic installer manages only the PortableApps app folder name, verified `AppID`, root launcher, `App` and `Other` directories. It cannot own unrelated Windows profiles or AppData. It never embeds or removes `Data`.
+The offline official-source engine never downloads or executes a PortableApps.com installer EXE. `makensis.exe` compiles the generated vendor application installer source in a private stage; outputs are integrity-checked and separately named. Compilation fails if required source is unavailable or unexpected macros appear. The vendor source version is controlled by the caller and its Git history; never auto-update compiler templates blindly during production builds.
 
-## Replacement and rollback
+`PortableApps.comInstaller.nsi`, `PortableApps.comInstallerConfig.nsh`, and any referenced support files must be complete and trust-reviewed. Generated output is not automatically signed or certified by PortableApps.com.
 
-The installer refuses destinations with different AppID and nonempty unknown folders, checks the launcher and optionally configured application executable for exclusive access, and stages the complete new managed payload before beginning replacement.
-
-All renames happen within the portable root, which keeps them on one volume. Previously managed content is moved to a reserved backup directory; a successful install removes that backup, and ordinary errors trigger rollback. Reparse/symlink input trees are rejected by the PowerShell preflight. The compiler itself never inserts data from existing app profiles into its payload.
-
-Limits: NSIS is not a durable transaction database. Abrupt power failure, drive removal, antivirus/file locks, malicious symlinks already present in an old destination tree, or a disk with insufficient free space can interrupt cleanup and require manual intervention. Do not delete `.__UPB_Backup` without first checking whether the original `App`, `Other` or launcher need to be recovered. The installer refuses new upgrades when a reserved backup or stage exists.
-
-## Existing user content outside Data
-
-PortableApps Format usually treats `App` and `Other` as replaceable managed files. Some applications may store user-installed plugins in `App`. Such applications need an application-specific migration plan or a preserve directory rule before using this default replacement policy. Do not silently use this generic engine when existing user content is scattered across App or Other. Use the official Installer's preserve path options where suitable, or extend the shared engine with explicit supported preserve paths before adopting it.
-
-## Registry and runtime traces
-
-This packaging module does not add startup entries, registry redirection or user-profile migration. Those belong to each app launcher and its TraceGuard. Standalone apps may still create Windows traces (Recent Items, registry MRU, fonts, encryption keys); no blanket no-traces claim is made.
-
-## Source and legal notices
-
-- [PortableApps.com Format 3.9](https://portableapps.com/development/portableapps.com_format)
-- [PortableApps.com Installer](https://portableapps.com/apps/development/portableapps.com_installer)
-- [GitHub composite actions](https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action)
-- [GitHub reusable workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations)
-- [NSIS Scripting Reference](https://nsis.sourceforge.io/Docs/Chapter4.html)
-
-The repository source code is MIT licensed; this **does not grant redistribution rights** to upstream apps, their trademarks, the PortableApps.com marks, or the official PortableApps Installer. The NSIS compiler and runtime are third-party tools covered by their own licenses.
+Preserve licensing and any existing `installer.ini` rules. Because generated config reflects app-specific installer settings, regenerate source when those settings change. Do not copy app private Data into a release.
