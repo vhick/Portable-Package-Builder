@@ -22,10 +22,10 @@ on:
         default: false
       official-tool-url:
         type: string
-        default: ''
+        default: 'https://sourceforge.net/projects/portableapps/files/PortableApps.com%20Installer/PortableApps.comInstaller_3.9.24.paf.exe/download'
       official-tool-sha256:
         type: string
-        default: ''
+        default: '7ef6e2758cb578843d767fb5fafdbde8bf872b84f0acd6e64f18afbb05c04f00'
       package-revision:
         type: string
         default: r1
@@ -57,8 +57,8 @@ jobs:
       - name: Checkout universal packaging scripts (separate directory)
         uses: actions/checkout@v4
         with:
-          repository: vhick/portable-package-builder
-          ref: v1.0.0
+          repository: vhick/Portable-Package-Builder
+          ref: v1.1.0
           path: .upb-tool
           persist-credentials: false
       - name: Verify source ZIP and extract once
@@ -72,7 +72,7 @@ jobs:
           & ./.upb-tool/scripts/download-release.ps1 -SourceTag $env:SOURCE_TAG -AssetName $env:SOURCE_ASSET -Destination "$env:RUNNER_TEMP\source-release"
       - name: Build independent or official installer
         id: pack
-        uses: vhick/portable-package-builder@v1.0.0
+        uses: vhick/Portable-Package-Builder@v1.1.0
         with:
           source-dir: ${{ steps.download.outputs.source-dir }}
           output-dir: ${{ github.workspace }}/dist
@@ -81,6 +81,22 @@ jobs:
           package-revision: ${{ inputs.package-revision }}
           official-tool-url: ${{ inputs.official-tool-url }}
           official-tool-sha256: ${{ inputs.official-tool-sha256 }}
+      - name: Show two independent engine outputs
+        shell: pwsh
+        env:
+          CUSTOM_FILE: ${{ steps.pack.outputs.custom-installer-file }}
+          OFFICIAL_FILE: ${{ steps.pack.outputs.official-installer-file }}
+        run: |
+          Write-Host "Independent NSIS: $env:CUSTOM_FILE"
+          Write-Host "Official PortableApps: $env:OFFICIAL_FILE"
+      - name: Upload diagnostic logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-package-builder-diagnostics
+          path: dist/_upb_work/**/*.log
+          if-no-files-found: ignore
+          retention-days: 5
       - name: Publisher dry run (no upload)
         if: inputs.publish
         uses: vhick/portable-release-publisher@v1.1.1

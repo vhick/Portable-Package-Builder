@@ -8,7 +8,7 @@ inputs:
     description: Folder for finished installer outputs; do not point it inside source-dir.
     required: true
   engine:
-    description: custom-nsis (independent NSIS) or official (authentic official tool; experimental).
+    description: custom-nsis (default), official (unmodified vendor packaging tool), or both (two separate installers).
     required: false
     default: custom-nsis
   running-exe:
@@ -24,13 +24,13 @@ inputs:
     required: false
     default: r1
   official-tool-url:
-    description: Required only for official engine; HTTPS official installer distribution URL.
+    description: Versioned official SourceForge distribution URL; default pinned 3.9.24.
     required: false
-    default: ''
+    default: 'https://sourceforge.net/projects/portableapps/files/PortableApps.com%20Installer/PortableApps.comInstaller_3.9.24.paf.exe/download'
   official-tool-sha256:
-    description: Required only for official engine; vendor-published 64-character checksum.
+    description: Vendor SourceForge-displayed SHA256 of the pinned 3.9.24 download; update together with URL.
     required: false
-    default: ''
+    default: '7ef6e2758cb578843d767fb5fafdbde8bf872b84f0acd6e64f18afbb05c04f00'
 outputs:
   installer-file:
     description: Absolute path of the validated installer EXE.
@@ -38,6 +38,18 @@ outputs:
   installer-sha256:
     description: SHA256 digest of the installer.
     value: ${{ steps.build.outputs.installer-sha256 }}
+  custom-installer-file:
+    description: Independent NSIS installer path (empty if engine=official).
+    value: ${{ steps.build.outputs.custom-installer-file }}
+  custom-installer-sha256:
+    description: Independent NSIS installer checksum (empty if not requested).
+    value: ${{ steps.build.outputs.custom-installer-sha256 }}
+  official-installer-file:
+    description: Vendor-created official PortableApps.com installer path (empty if engine=custom-nsis).
+    value: ${{ steps.build.outputs.official-installer-file }}
+  official-installer-sha256:
+    description: Official vendor-tool installer checksum (empty if not requested).
+    value: ${{ steps.build.outputs.official-installer-sha256 }}
   app-id:
     description: AppID extracted from appinfo.ini.
     value: ${{ steps.build.outputs.app-id }}
@@ -52,7 +64,7 @@ runs:
       run: |
         if (-not $IsWindows) { throw 'This action requires Windows.' }
     - name: Install NSIS compiler only if requested and missing
-      if: inputs.engine == 'custom-nsis'
+      if: inputs.engine == 'custom-nsis' || inputs.engine == 'both'
       shell: pwsh
       run: |
         $n = Get-Command makensis.exe -ErrorAction SilentlyContinue | Select-Object -First 1

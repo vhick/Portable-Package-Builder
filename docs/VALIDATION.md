@@ -42,3 +42,15 @@ These are synthetic tests. A successful synthetic test does **not** establish th
 ## Status at delivery
 
 The scripts and assets are provided for GitHub Actions testing. **No actual Windows NSIS compilation, installation, rollback, official PAF compilation, or publisher execution is claimed in this environment.**
+
+## r2 dual-engine acceptance — mandatory before tagging v1.1.0
+
+- [ ] Push this r2 ZIP over the existing repository; confirm `custom-nsis` remains the default in `action.yml`.
+- [ ] Run `Universal Packager Self-Test` to verify the unchanged custom engine install/upgrade/rollback.
+- [ ] Run `Official PortableApps Installer - Windows CI Smoke Test`; it downloads exact vendor version 3.9.24 (published SHA256 pinned), builds **both** engines from a disposable complete fixture, verifies no source modifications, excludes private Data markers, and installs the vendor-created PAF with NSIS `/S` into a temporary directory.
+- [ ] Confirm the official NSIS compiler log contains no errors, the PAF output has AppInfo, and both output executables have distinct names.
+- [ ] Repeat using one actual app builder with `engine: both`, `publish: false`; examine both PAFs and launch the app.
+- [ ] Test upgrading each engine independently over its **own** previous installed package copy; verify Data files and empty directories preserved, older app binaries updated and app IDs unchanged.
+- [ ] Only when successful, tag `v1.1.0` and enable publishing on new release tags.
+
+If the vendor tool's automatic mode raises a GUI dialog or hangs on a particular app, the official path must fail/timeout with logs; do not silently fall back to custom NSIS or falsely label its output official. The official installer and independent NSIS installer have distinct upgrade rules.

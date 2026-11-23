@@ -29,4 +29,18 @@ for path in root.rglob('*.ps1'):
     for found in re.findall(r'\$([A-Za-z_][A-Za-z_0-9]*):(?=[^A-Za-z0-9_])',source):
         if found.lower() not in ('env',):
             raise AssertionError(f'Possible PowerShell interpolation issue in {path}: ${found}:')
-print('PASS: Static structure, Data exclusions, rollback hooks, publisher and test coverage')
+official=(root/'scripts/build-official.ps1').read_text()
+new_test=(root/'tests/test-official.ps1').read_text()
+smoke=(root/'.github/workflows/official-smoke-test.yml').read_text()
+assert 'both' in a and 'official-installer-file' in a and 'custom-installer-file' in a
+assert "default: custom-nsis" in a
+assert '3.9.24' in a and '7ef6e2758cb578843d767fb5fafdbde8bf872b84f0acd6e64f18afbb05c04f00' in a
+assert 'Assert-NoReparse $Info.Source' in official
+assert "'/XD'" in official and "Join-Path $Info.Source 'Data'" in official
+assert 'portableapps.cominstaller.nsi' in official.lower()
+assert 'Invoke-Program $tool @($stage)' in official
+assert "@($stage,'/S')" not in official
+assert 'official' in smoke.lower() and 'test-official.ps1' in smoke
+assert 'Data/profile/private-marker.txt' in new_test
+assert 'official' in src and 'both' in src
+print('PASS: Static structure, Data exclusions, independent+official outputs, checksum pin, vendor isolation, no unsupported wizard /S, publisher and fixture coverage')

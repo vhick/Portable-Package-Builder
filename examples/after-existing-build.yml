@@ -2,20 +2,20 @@
 # This is a DOCUMENTATION EXAMPLE, not a standalone GitHub Actions workflow.
 # Assumes work/BravePortable contains a prepared portable application.
 steps:
-  - name: Build a community PAF-style installer (existing job)
+  - name: Build independent and official PortableApps installers (existing job)
     id: portable_installer
-    uses: vhick/portable-package-builder@v1.0.0
+    uses: vhick/Portable-Package-Builder@v1.1.0
     with:
       source-dir: work/BravePortable
       output-dir: dist
-      engine: custom-nsis
+      engine: both
       running-exe: 'App\Brave\brave.exe'
-      package-revision: r1
+      package-revision: r2
   - name: Publisher dry run
     uses: vhick/portable-release-publisher@v1.1.1
     with:
       files: 'dist/*.zip;dist/*.paf.exe'
-      tag: portable-v1.98.63-brave-custom-r1
+      tag: portable-v1.98.63-brave-dual-r2
       keep-releases: '3'
       prune: 'false'
       dry-run: 'true'
@@ -23,7 +23,7 @@ steps:
     uses: vhick/portable-release-publisher@v1.1.1
     with:
       files: 'dist/*.zip;dist/*.paf.exe'
-      tag: portable-v1.98.63-brave-custom-r1
+      tag: portable-v1.98.63-brave-dual-r2
       keep-releases: '3'
       prune: 'false'
       dry-run: 'false'

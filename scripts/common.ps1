@@ -59,7 +59,7 @@ function Get-PackageInfo([string]$Source) {
   $launcherPath=Join-Path $source $launcher
   Assert-PE $launcherPath
   Require (Test-Path -LiteralPath (Join-Path $source 'App/AppInfo/appicon.ico') -PathType Leaf) 'Missing appicon.ico'
-  foreach($part in @('App','Other')) { Assert-NoReparse (Join-Path $source $part) }
+  Assert-NoReparse $source
   return [pscustomobject]@{ Source=$source; Folder=$folder; AppID=$id; Name=$name; Version=$version; Launcher=$launcher }
 }
 function Get-Makensis {
@@ -81,6 +81,7 @@ function Invoke-Program([string]$Executable,[string[]]$Arguments,[int]$TimeoutSe
   $startInfo.WorkingDirectory=$WorkingDirectory
   $startInfo.UseShellExecute=$false
   $startInfo.CreateNoWindow=$true
+  $startInfo.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
   $startInfo.RedirectStandardOutput=$true
   $startInfo.RedirectStandardError=$true
   foreach($arg in $Arguments) { [void]$startInfo.ArgumentList.Add($arg) }

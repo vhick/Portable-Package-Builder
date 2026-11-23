@@ -1,0 +1,30 @@
+name: Official PortableApps Installer - Windows CI Smoke Test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-official:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout portable package builder
+        uses: actions/checkout@v4
+      - name: Install NSIS only if missing (independent engine)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis.exe -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) {
+            choco install nsis --yes --no-progress --limit-output
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to install NSIS' }
+          }
+      - name: Build both engines from synthetic fixture and test silent install
+        shell: pwsh
+        run: '& ./tests/test-official.ps1'
+      - name: Upload compiler logs if test fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-installer-diagnostics
+          path: official-smoke-diagnostics/*.log
+          if-no-files-found: ignore
+          retention-days: 5

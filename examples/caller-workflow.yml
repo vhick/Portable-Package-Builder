@@ -12,9 +12,9 @@ on:
         required: true
         default: BravePortable_1.98.63_brave-r7_Win64.zip
       output_tag:
-        description: NEW release tag for independent NSIS installer
+        description: NEW release tag for chosen installer engine(s)
         required: true
-        default: portable-v1.98.63-brave-universal-nsis-r1
+        default: portable-v1.98.63-brave-dual-r2
       publish:
         type: boolean
         description: Actually publish when all installer checks pass
@@ -23,12 +23,12 @@ permissions:
   contents: write
 jobs:
   paf:
-    uses: vhick/portable-package-builder/.github/workflows/portable-paf-from-release.yml@v1.0.0
+    uses: vhick/Portable-Package-Builder/.github/workflows/portable-paf-from-release.yml@v1.1.0
     with:
       source-tag: ${{ inputs.source_tag }}
       source-asset: ${{ inputs.source_asset }}
       output-tag: ${{ inputs.output_tag }}
-      engine: custom-nsis
+      engine: both
       running-exe: 'App\Brave\brave.exe'
-      package-revision: r1
+      package-revision: r2
       publish: ${{ inputs.publish }}
