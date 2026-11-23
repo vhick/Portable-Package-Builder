@@ -1,21 +1,22 @@
+# FOR PRE-RELEASE TESTS: pin shared builder ref to a verified immutable tag for production.
 # Paste these steps INSIDE an existing Windows build job, after stage validation.
 # This is a DOCUMENTATION EXAMPLE, not a standalone GitHub Actions workflow.
 # Assumes work/BravePortable contains a prepared portable application.
 steps:
   - name: Build independent and official PortableApps installers (existing job)
     id: portable_installer
-    uses: vhick/Portable-Package-Builder@v1.1.0
+    uses: vhick/Portable-Package-Builder@main
     with:
       source-dir: work/BravePortable
       output-dir: dist
       engine: both
       running-exe: 'App\Brave\brave.exe'
-      package-revision: r2
+      package-revision: r4
   - name: Publisher dry run
     uses: vhick/portable-release-publisher@v1.1.1
     with:
       files: 'dist/*.zip;dist/*.paf.exe'
-      tag: portable-v1.98.63-brave-dual-r2
+      tag: portable-v1.98.63-brave-dual-r4
       keep-releases: '3'
       prune: 'false'
       dry-run: 'true'
@@ -23,7 +24,7 @@ steps:
     uses: vhick/portable-release-publisher@v1.1.1
     with:
       files: 'dist/*.zip;dist/*.paf.exe'
-      tag: portable-v1.98.63-brave-dual-r2
+      tag: portable-v1.98.63-brave-dual-r4
       keep-releases: '3'
       prune: 'false'
       dry-run: 'false'

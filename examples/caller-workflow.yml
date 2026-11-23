@@ -1,3 +1,4 @@
+# FOR PRE-RELEASE TESTS: pin shared builder ref to a verified immutable tag for production.
 # Copy into .github/workflows/build-paf-from-release.yml of an application builder repo.
 name: Package existing ZIP with universal builder
 on:
@@ -14,7 +15,7 @@ on:
       output_tag:
         description: NEW release tag for chosen installer engine(s)
         required: true
-        default: portable-v1.98.63-brave-dual-r2
+        default: portable-v1.98.63-brave-dual-r4
       publish:
         type: boolean
         description: Actually publish when all installer checks pass
@@ -23,12 +24,12 @@ permissions:
   contents: write
 jobs:
   paf:
-    uses: vhick/Portable-Package-Builder/.github/workflows/portable-paf-from-release.yml@v1.1.0
+    uses: vhick/Portable-Package-Builder/.github/workflows/portable-paf-from-release.yml@main
     with:
       source-tag: ${{ inputs.source_tag }}
       source-asset: ${{ inputs.source_asset }}
       output-tag: ${{ inputs.output_tag }}
       engine: both
       running-exe: 'App\Brave\brave.exe'
-      package-revision: r2
+      package-revision: r4
       publish: ${{ inputs.publish }}

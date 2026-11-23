@@ -8,7 +8,7 @@ inputs:
     description: Folder for finished installer outputs; do not point it inside source-dir.
     required: true
   engine:
-    description: custom-nsis (default), official (headless compilation of genuine generated NSIS sources), or both (two separate installers).
+    description: custom-nsis (default), official (offline compilation of genuine vendor NSIS template), or both (two separate installers).
     required: false
     default: custom-nsis
   running-exe:
@@ -24,7 +24,7 @@ inputs:
     required: false
     default: r1
   official-source-dir:
-    description: Complete generated official PortableApps Other/Source path, containing PortableApps.comInstaller.nsi and Config.nsh. Empty means source-dir/Other/Source.
+    description: Optional root of a verified, extracted PortableApps Installer toolchain (App/installer, App/nsis, UPSTREAM-MANIFEST.json). Default uses bundled 3.9.24.
     required: false
     default: ''
 outputs:
@@ -59,8 +59,8 @@ runs:
       shell: pwsh
       run: |
         if (-not $IsWindows) { throw 'This action requires Windows.' }
-    - name: Install NSIS compiler only if requested and missing
-      if: inputs.engine == 'custom-nsis' || inputs.engine == 'official' || inputs.engine == 'both'
+    - name: Install NSIS compiler only for custom-nsis engine if missing
+      if: inputs.engine == 'custom-nsis' || inputs.engine == 'both'
       shell: pwsh
       run: |
         $n = Get-Command makensis.exe -ErrorAction SilentlyContinue | Select-Object -First 1

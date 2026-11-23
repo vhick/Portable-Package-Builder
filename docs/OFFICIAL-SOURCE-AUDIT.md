@@ -1,30 +1,29 @@
-# Source audit — r3 (2026-11-23)
+# Official source audit — extracted Installer 3.9.24
 
-## What failed in r2
+## Evidence and source distinction
 
-`logs_122094582442.zip`: custom NSIS succeeded; official attempt failed immediately on a SourceForge HTML/redirect/mirror response, with `Vendor distribution download unexpectedly small`. `official-installer-diagnostics.zip` contains only the custom compiler log, not an official compilation log. Thus the old official engine was **never tested**.
+Original `PortableApps_Installer_Source.zip` had `Other/Source/InstallerWizard.nsi` only (the *GUI generator*). The additional user-supplied `PortableApps.comInstaller_3.9.24.paf.zip` includes the missing **actual application installer template** `App/installer/PortableApps.comInstaller.nsi`, template config `PortableApps.comInstallerConfig.nsh`, 91+ translation and helper files, and the matching `App/nsis` compiler and plugins.
 
-## Uploaded ZIP inventory (directly checked)
+Vendor wizard `InstallerWizard.nsi` does the following: copies `App/installer/*` into the app's `Other/Source`, copies two header bitmaps from `App/default_bits`, appends many `!define ...` statements to the initially header-only config file based on `appinfo.ini` and `installer.ini`, and executes `App/nsis/makensis.exe` against the resulting template. It also mutates packaging files and may show interactive GUI. We replicate only the deterministic staging/config/compilation behavior in a staging copy, without executing the wizard binary.
 
-- `PortableApps_Installer_Source.zip`: `Source/InstallerWizard.nsi` (PortableApps.com Installer wizard 3.9.24), `MoveFiles.nsh`, `ReadINIStrWithDefault.nsh`, `TBProgress.nsh`, bitmaps, license, readme. It is the *wizard source* and **does not include** `App/installer/PortableApps.comInstaller.nsi`, its generated `PortableApps.comInstallerConfig.nsh`, its language assets, or the actual NSIS plugin/toolchain directory.
-- `PortableApps_NSIS_Source.zip`: `PortableApps.comInstallerCustom.nsh`, AppSource.txt, license/readme. It is an optional custom-code hook, **not the vendor installer template**.
-- `PortableApps_Launcher_Source.zip`: separate launcher/generator source, which is not the installer engine.
-- `Universal-Portable-Package-Builder-Kit-r1(1).zip`: custom NSIS builder and incomplete official download prototype.
+## Official code retained
 
-## Direct source observations
+- `App/installer/PortableApps.comInstaller.nsi` — original unmodified source; copyright and GPL notices retained
+- `App/installer/PortableApps.comInstallerConfig.nsh` — original license header, copied and appended with generated macros in stage
+- `App/installer/*` — official languages, icon, BMP and NSIS helper files
+- `App/default_bits/PortableApps.comInstallerHeader*.bmp` — explicit assets missing from `App/installer`, supplied by wizard during normal operation
+- `App/nsis/*` — bundled compiler, libraries and plugins; intact to avoid mismatch with a future separately installed NSIS
 
-`InstallerWizard.nsi`: `.onInit` lines 277–287 accepts a folder path to activate automatic mode; `OptionsPageShow` lines 310–329 configures source paths; Section Main lines 486–514 copies complete template from `$EXEDIR\App\installer\*.*` into an app's `Other\Source`, lines 543–547 writes generated config, and lines 1368–1379 invokes an NSIS compiler with that generated source. The missing `App\installer` template is crucial, not optional. In this mode the wizard is an automatic **GUI** generator, not a guaranteed windowless compiler. Avoid adding `/S` to its invocation.
+Critical hashes checked at runtime against `UPSTREAM-MANIFEST.json` for integrity. No network request for official packaging sources or builder executable. No interactive UI process.
 
-## r3 design / honest boundary
+## Compatibility constraints
 
-- `custom-nsis` remains unchanged and operates without official source.
-- `official` uses `makensis.exe` directly on a **complete generated official PortableApps.comInstaller.nsi + PortableApps.comInstallerConfig.nsh and all dependencies**, staged on a clean copy. It does not launch the wizard or fetch executable tools from PortableApps/SourceForge.
-- `both` builds both separately; custom output can already exist if the official source is missing, and the overall job fails instead of falsely claiming success.
-- Default `official-source-dir` empty means the portable application's `Other/Source` directory; optional override points to complete *generated* source for that exact app. Core source can be obtained through the full official tool's `App/installer` assets, but that is a distinct input the user has **not** uploaded. A raw `App/installer` template by itself is also not a generated per-app configuration.
-- r3 regenerates known version/identity defines in the staged config (`VERSION`, `DISPLAYVERSION`, `APPID`, `PORTABLEAPPNAME`), but custom install options and other generator fields are NOT automatically regenerated. Changes outside these fields require regenerating complete source. If the vendor changes macros, r3 **fails closed** with `OFFICIAL_SOURCE_INCOMPATIBLE` rather than silently compiling an invalid package.
-- The uploaded wizard source is included separately under `third_party/portableapps-installer-wizard-source/` for audit, not misrepresented as a complete template.
-- A green guard-only smoke test is **not** proof of a successful official installer. Full integration requires `official-source-dir` and a Windows run.
+- Template asserts 3.9.24.0; **upstream version changes require review**, not blind substitution.
+- `Other/Source/PortableApps.comInstallerCustom.nsh` is preserved in the isolated staged app, and USESCUSTOMCODE is defined if present.
+- Advanced installer.ini sections not yet handled fail clearly.
+- Installer-source inclusion is opt-in, via `[Source] IncludeInstallerSource=true`.
+- Custom NSIS remains independent/default.
+- The builder is not the official PortableApps.com organization; generated EXE uses their original installer template but is not certified/signed by them.
+- Real GitHub Actions compiler smoke test is required before a release tag.
 
-## Source authenticity
-
-Preserve the original NSIS vendor template, license, README and supporting files. Direct compiling generated official source does not grant signing or endorsement. Before distributing under any official naming convention ensure compliance with PortableApps licenses and format. Upstream source versions can be replaced without changing `build.ps1`; update and validate the source folder independently. No automatic "latest" promise can be made without a verified upstream source-code feed.
+Official references: https://portableapps.com/apps/development/portableapps.com_installer ; https://github.com/PortableApps/Installer ; https://portableapps.com/development/portableapps.com_format

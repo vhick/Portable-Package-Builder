@@ -1,0 +1,15 @@
+{
+  "source_package": "User-supplied extracted PortableApps.comInstaller_3.9.24.paf.zip",
+  "upstream_version": "3.9.24.0",
+  "source_archive_sha256": "af2fb4ec17aacc6e4b81f66da44d855754ef74a4163d7f80d9ce01c006550d14",
+  "critical_files": {
+    "App/installer/PortableApps.comInstaller.nsi": "99899863b0aad9f6856650a96cf102b8d0bd9197e5d15882bcf7e1ec8b103eaf",
+    "App/installer/PortableApps.comInstallerConfig.nsh": "8c7776d2e471c7b990f27ff74bcfc27f076aae6ea47c26958a84e740fa4dd0a6",
+    "App/nsis/makensis.exe": "4ec390d0f96f9728507fbc2f4e91311dd90bfc6c8ddfe2159357b3651ae151c0",
+    "App/nsis/Include/MUI2.nsh": "2c847d2009b55ff46f8bc1591ffda00f0194fb08ffebc0876cda669b7957b396",
+    "App/nsis/Plugins/x86-unicode/MoreInfo.dll": "227a4fc9408a44faa5eca608a974bd536814f97b8a4d28b4cac479727167b026",
+    "App/default_bits/PortableApps.comInstallerHeader.bmp": "f58dccb24238e8d4d9f11c4d0f3646bd2dff130912dc2bb601ed43dff3f2bf46",
+    "App/default_bits/PortableApps.comInstallerHeaderRTL.bmp": "cfac307399974ed2c8a09fca26e777f76064acf08a32fd53ad386314b207dde7"
+  },
+  "bundled_file_count": 847
+}

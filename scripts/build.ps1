@@ -31,15 +31,15 @@ foreach($chosen in $(if($Engine -eq 'both') { @('custom-nsis','official') } else
     $args=@('/V3',"/DSOURCE_DIR=$($meta.Source)","/DOUTPUT_PATH=$target","/DAPP_FOLDER=$($meta.Folder)","/DAPP_ID=$($meta.AppID)","/DAPP_NAME=$($meta.Name)","/DLAUNCHER_FILE=$($meta.Launcher)","/DAPP_VERSION=$($meta.Version)","/DRUNNING_EXE=$RunningExe",$nsis)
     Invoke-Program $maker $args $TimeoutSeconds $work (Join-Path $work 'makensis.log')
   } else {
-    # The genuine wizard's automatic compile mode is a separate process with
-    # private stage; it never modifies the validated input used by custom NSIS.
+    # Compile the genuine official NSIS source and separate bundled toolchain
+    # from an isolated copy, never running the interactive installer wizard.
     & "$PSScriptRoot/build-official.ps1" -Info $meta -Target $target -Work (Join-Path $work 'official') -OfficialSourceDir $OfficialSourceDir -TimeoutSeconds $TimeoutSeconds
   }
   Assert-PE $target
   Assert-Archive $target
   $hash=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
   "$hash  $basename" | Set-Content -LiteralPath "$target.sha256" -Encoding ascii
-  [pscustomobject]@{ app_id=$meta.AppID;folder=$meta.Folder;version=$meta.Version;engine=$chosen;file=$target;sha256=$hash;provenance=$(if($chosen -eq 'official'){'official-generated-nsis-source'}else{'independent-nsis'}) } |
+  [pscustomobject]@{ app_id=$meta.AppID;folder=$meta.Folder;version=$meta.Version;engine=$chosen;file=$target;sha256=$hash;provenance=$(if($chosen -eq 'official'){'official-3.9.24-source-compiled-bundled-nsis'}else{'independent-nsis'}) } |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$target.json" -Encoding utf8
   $results[$chosen]=[pscustomobject]@{File=$target;Sha=$hash}
   Write-Host "VALIDATED ($chosen) $target  SHA-256 $hash"

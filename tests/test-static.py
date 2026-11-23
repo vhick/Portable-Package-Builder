@@ -40,11 +40,19 @@ assert 'OFFICIAL_SOURCE_MISSING' in official
 assert 'PortableApps.comInstaller.nsi' in official
 assert 'PortableApps.comInstallerConfig.nsh' in official
 assert 'Invoke-Program $maker' in official
-assert 'Assert-NoReparse $sourceDir' in official
+assert 'App/nsis/makensis.exe' in official
+assert 'official-makensis.log' in official
+assert 'generate-official-config.py' in official
+assert 'UPSTREAM-MANIFEST.json' in official
+assert 'Assert-NoReparse $vendor' in official
 assert "Join-Path $Info.Source 'Data'" in official
 assert 'Invoke-WebRequest' not in official
 assert 'InstallerWizard.exe' not in official.replace('Never execute InstallerWizard.exe', '')
 assert 'official' in smoke.lower() and 'test-official.ps1' in smoke
+assert 'Full headless official and custom installer compile' in smoke
+assert 'Install NSIS compiler only for custom-nsis engine' in a
+assert 'portableapps-installer-3.9.24/App/nsis/makensis.exe' in new_test or 'official-makensis.log' in new_test
+assert (root/'third_party/portableapps-installer-3.9.24/App/installer/PortableApps.comInstaller.nsi').is_file()
 assert 'Data/private/secret.txt' in new_test
 assert 'official' in src and 'both' in src
-print('PASS: Static structure, Data exclusions, offline official-source guard, custom NSIS preservation, publisher and fixture coverage')
+print('PASS: Static structure, Data exclusions, bundled official-source compilation, custom NSIS preservation, publisher and fixture coverage')

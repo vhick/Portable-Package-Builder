@@ -1,5 +1,5 @@
-# Upstream source (GPL)
+# Bundled third-party source
 
-`portableapps-installer-wizard-source` is copied unchanged from the user's uploaded `PortableApps_Installer_Source.zip` for audit and GPL source attribution. See `License.txt` and `Readme.txt` in the folder.
+`portableapps-installer-3.9.24/` contains the selected files of the **user-supplied extracted official PortableApps.com Installer 3.9.24**, not a downloaded `.paf.exe` tool. The source snapshot includes `App/installer`, `App/nsis`, required `App/default_bits` headers and `App/Readme.txt`. Original license and copyright notices remain in source files, and `App/nsis/COPYING` accompanies bundled NSIS. Refer to `UPSTREAM-MANIFEST.json` for source provenance and exact critical-file SHA-256 checks.
 
-This is the **packaging wizard**, NOT the application installer template needed for source-only compilation. Do not infer that it makes the `official` engine runnable without the separate vendor-generated NSIS template and dependent assets.
+`portableapps-installer-wizard-source/` remains from the prior user-supplied wizard-only source ZIP, for comparison/review; **not launched by the official build engine**.

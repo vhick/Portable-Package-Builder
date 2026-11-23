@@ -11,7 +11,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run fast static contract checks
         shell: pwsh
-        run: python ./tests/test-static.py
+        run: |
+          python ./tests/test-static.py
+          python ./tests/test-official-config.py
       - name: Syntax parse all PowerShell scripts
         shell: pwsh
         run: |
