@@ -10,6 +10,16 @@ param(
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot/common.ps1"
 Require ($IsWindows) 'Official PortableApps source compiler requires Windows.'
+# PortableApps.com Installer 3.9.24 uses a wildcard for root HTML files.
+# A missing help.html produced an obscure NSIS File '..\..\*.html' error
+# with Rufus. Fail early with an application-specific, actionable message.
+# Do not generate generic help here: only the application's builder knows its
+# real support links, copyright and launch instructions. Custom NSIS is unaffected.
+$helpFile=Join-Path $Info.Source 'help.html'
+Require (Test-Path -LiteralPath $helpFile -PathType Leaf) "OFFICIAL_HELP_MISSING: $($Info.Folder) must contain help.html at its ROOT (beside $($Info.Launcher)). Have the application-specific builder create it before invoking the official package engine. Do not put help.html in the shared builder repository."
+$helpContent=Get-Content -LiteralPath $helpFile -Raw -ErrorAction Stop
+Require (($helpContent -match '(?is)<(?:!doctype\s+html\b|html\b)') -and ($helpContent -match '(?is)<body\b') -and ($helpContent.Length -ge 32)) "OFFICIAL_HELP_INVALID: $helpFile is empty or does not look like a usable HTML help page. Provide application-specific HTML with an HTML document and body."
+Write-Host "OFFICIAL_HELP_VALIDATED: $helpFile"
 $root=Split-Path $PSScriptRoot -Parent
 $vendor=if($OfficialSourceDir) { Resolve-Directory $OfficialSourceDir } else { Join-Path $root 'third_party/portableapps-installer-3.9.24' }
 $manifestFile=Join-Path $vendor 'UPSTREAM-MANIFEST.json'
@@ -41,6 +51,7 @@ $args=@($Info.Source,$stage,'/E','/XJ','/R:1','/W:1','/NP','/NFL','/NDL','/NJH',
 & robocopy.exe @args | Out-Null
 Require ($LASTEXITCODE -le 7) "Unable to stage application (robocopy exit $LASTEXITCODE)."
 Require (-not (Test-Path -LiteralPath (Join-Path $stage 'Data'))) 'User Data unexpectedly staged!'
+Require (Test-Path -LiteralPath (Join-Path $stage 'help.html') -PathType Leaf) 'OFFICIAL_HELP_MISSING: Valid help.html was not copied to the isolated official installer stage.'
 $generated=Join-Path $stage 'Other/Source'
 New-Item -ItemType Directory -Path $generated -Force | Out-Null
 # Vendor does the same upstream source copy before GUI-created config writing.

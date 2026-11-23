@@ -47,6 +47,24 @@ CloseEXE=FixturePortable.exe
 'Fixture app test' | Set-Content -LiteralPath (Join-Path $src 'App/Fixture/1.2.3.4/version.txt')
 $before=(Get-FileHash -LiteralPath (Join-Path $src 'App/AppInfo/appinfo.ini') -Algorithm SHA256).Hash
 $secretBefore=(Get-FileHash -LiteralPath (Join-Path $src 'Data/private/secret.txt') -Algorithm SHA256).Hash
+# Negative regression: the official engine must refuse a package missing
+# root help.html BEFORE invoking makensis. The custom engine remains unchanged.
+$helpPath=Join-Path $src 'help.html'
+$helpBackup=Join-Path $base 'help-fixture.backup'
+Move-Item -LiteralPath $helpPath -Destination $helpBackup
+$missingHelpCaught=$false
+try {
+  & "$PSScriptRoot/../scripts/build.ps1" -SourceDir $src -OutputDir (Join-Path $base 'no-help-output') -Engine official -PackageRevision no-help -TimeoutSeconds 60
+} catch {
+  Require ($_.Exception.Message -match 'OFFICIAL_HELP_MISSING') "Unexpected failure when help.html is absent: $($_.Exception.Message)"
+  $missingHelpCaught=$true
+} finally {
+  Move-Item -LiteralPath $helpBackup -Destination $helpPath
+}
+Require ($missingHelpCaught) 'Official build unexpectedly accepted a package without root help.html.'
+$missingLogs=@(Get-ChildItem -LiteralPath (Join-Path $base 'no-help-output') -Filter 'official-makensis.log' -Recurse -File -ErrorAction SilentlyContinue)
+Require ($missingLogs.Count -eq 0) 'Official NSIS compiler ran even though help.html was missing.'
+Write-Host 'PASS: Official builder rejects missing root help.html before invoking NSIS.'
 try {
   & "$PSScriptRoot/../scripts/build.ps1" -SourceDir $src -OutputDir $out -Engine both -PackageRevision smoke -TimeoutSeconds 600
   $official=@(Get-ChildItem -LiteralPath $out -File -Filter '*_official-*.paf.exe')

@@ -56,3 +56,13 @@ assert (root/'third_party/portableapps-installer-3.9.24/App/installer/PortableAp
 assert 'Data/private/secret.txt' in new_test
 assert 'official' in src and 'both' in src
 print('PASS: Static structure, Data exclusions, bundled official-source compilation, custom NSIS preservation, publisher and fixture coverage')
+
+# Rufus b1r5 follow-up: fail early with clear, official-only root help.html validation.
+assert 'OFFICIAL_HELP_MISSING' in official
+assert 'OFFICIAL_HELP_INVALID' in official
+assert 'OFFICIAL_HELP_VALIDATED' in official
+assert "Join-Path $Info.Source 'help.html'" in official
+assert 'OFFICIAL_HELP_MISSING' in new_test
+assert 'no-help-output' in new_test
+assert 'OFFICIAL_HELP_MISSING' not in (root/'scripts/build.ps1').read_text()  # not a custom-engine requirement
+print('PASS: Official-only HTML preflight regression coverage')

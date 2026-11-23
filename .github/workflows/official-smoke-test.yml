@@ -6,6 +6,8 @@ on:
       - 'scripts/build-official.ps1'
       - 'scripts/generate-official-config.py'
       - 'tests/test-official.ps1'
+      - 'README.md'
+      - 'docs/HELP-HTML-AND-v1.1.0-RELEASE.md'
       - 'third_party/portableapps-installer-3.9.24/**'
       - '.github/workflows/official-smoke-test.yml'
 permissions:
